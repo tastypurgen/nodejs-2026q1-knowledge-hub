@@ -21,22 +21,21 @@ export class CommentService {
     private readonly articleService: ArticleService,
   ) {}
 
-  findAll(query: CommentListQueryDto) {
-    const comments = this.commentRepository
-      .findByArticleId(query.articleId)
+  async findAll(query: CommentListQueryDto) {
+    const comments = (await this.commentRepository.findByArticleId(query.articleId))
       .map((comment) => new CommentResponseDto(comment));
 
     return applyCollectionQuery(comments, query);
   }
 
-  create(dto: CreateCommentDto): CommentResponseDto {
-    if (!this.articleService.exists(dto.articleId)) {
+  async create(dto: CreateCommentDto): Promise<CommentResponseDto> {
+    if (!(await this.articleService.exists(dto.articleId))) {
       throw new UnprocessableEntityException(
         `Article with id ${dto.articleId} does not exist`,
       );
     }
 
-    const comment = this.commentRepository.create({
+    const comment = await this.commentRepository.create({
       content: dto.content,
       articleId: dto.articleId,
       authorId: dto.authorId ?? null,
@@ -45,18 +44,10 @@ export class CommentService {
     return new CommentResponseDto(comment);
   }
 
-  remove(id: string): void {
-    const deletedComment = this.commentRepository.delete(id);
+  async remove(id: string): Promise<void> {
+    const deletedComment = await this.commentRepository.delete(id);
     if (!deletedComment) {
       throw new NotFoundException(`Comment with id ${id} not found`);
     }
-  }
-
-  removeByAuthor(authorId: string): void {
-    this.commentRepository.deleteByAuthorId(authorId);
-  }
-
-  removeByArticle(articleId: string): void {
-    this.commentRepository.deleteByArticleId(articleId);
   }
 }

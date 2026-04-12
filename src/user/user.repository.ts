@@ -1,52 +1,77 @@
 import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-
+import { PrismaService } from '../prisma/prisma.service';
 import type { User } from './models/user.model';
+import { UserRole } from '../common/enums/user-role.enum';
 
 @Injectable()
 export class UserRepository {
-  private readonly users: User[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAll(): User[] {
-    return [...this.users];
-  }
-
-  findById(id: string): User | undefined {
-    return this.users.find((user) => user.id === id);
-  }
-
-  create(data: Pick<User, 'login' | 'password' | 'role'>): User {
-    const timestamp = Date.now();
-    const user: User = {
-      id: randomUUID(),
-      login: data.login,
-      password: data.password,
-      role: data.role,
-      createdAt: timestamp,
-      updatedAt: timestamp,
+  private mapUser(user: any): User {
+    return {
+      id: user.id,
+      login: user.login,
+      password: user.password,
+      role: user.role as UserRole,
+      createdAt: user.createdAt.getTime(),
+      updatedAt: user.updatedAt.getTime(),
     };
-
-    this.users.push(user);
-    return user;
   }
 
-  update(id: string, data: Partial<Pick<User, 'password' | 'role' | 'login'>>): User | undefined {
-    const user = this.findById(id);
+  async findAll(): Promise<User[]> {
+    const users = await this.prisma.user.findMany();
+    return users.map(this.mapUser);
+  }
+
+  async findById(id: string): Promise<User | undefined> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    return user ? this.mapUser(user) : undefined;
+  }
+
+  async create(data: Pick<User, 'login' | 'password' | 'role'>): Promise<User> {
+    const user = await this.prisma.user.create({
+      data: {
+        login: data.login,
+        password: data.password,
+        role: data.role as any,
+      },
+    });
+    return this.mapUser(user);
+  }
+
+  async update(id: string, data: Partial<Pick<User, 'password' | 'role' | 'login'>>): Promise<User | undefined> {
+    const user = await this.findById(id);
     if (!user) {
       return undefined;
     }
 
-    Object.assign(user, data, { updatedAt: Date.now() });
-    return user;
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: {
+        login: data.login,
+        password: data.password,
+        role: data.role as any,
+      },
+    });
+    return this.mapUser(updated);
   }
 
-  delete(id: string): User | undefined {
-    const index = this.users.findIndex((user) => user.id === id);
-    if (index === -1) {
+  async delete(id: string): Promise<User | undefined> {
+    const user = await this.findById(id);
+    if (!user) {
       return undefined;
     }
 
-    const [deletedUser] = this.users.splice(index, 1);
-    return deletedUser;
+    const [deleted] = await this.prisma.$transaction([
+      this.prisma.user.delete({ where: { id } }),
+      // Optional: Prisma natively handles onDelete: SetNull for Article.authorId,
+      // but explicitly updating for demonstration of complex transaction
+      this.prisma.article.updateMany({
+        where: { authorId: id },
+        data: { authorId: null },
+      }),
+    ]);
+
+    return this.mapUser(deleted);
   }
 }
