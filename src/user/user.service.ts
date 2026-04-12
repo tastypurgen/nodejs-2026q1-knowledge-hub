@@ -25,13 +25,13 @@ export class UserService {
     private readonly commentService: CommentService,
   ) {}
 
-  findAll(query: UserListQueryDto) {
-    const users = this.userRepository.findAll().map(toUserResponse);
+  async findAll(query: UserListQueryDto) {
+    const users = (await this.userRepository.findAll()).map(toUserResponse);
     return applyCollectionQuery(users, query);
   }
 
-  findOne(id: string): UserResponseDto {
-    const user = this.userRepository.findById(id);
+  async findOne(id: string): Promise<UserResponseDto> {
+    const user = await this.userRepository.findById(id);
     if (!user) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
@@ -39,8 +39,8 @@ export class UserService {
     return toUserResponse(user);
   }
 
-  create(dto: CreateUserDto): UserResponseDto {
-    const user = this.userRepository.create({
+  async create(dto: CreateUserDto): Promise<UserResponseDto> {
+    const user = await this.userRepository.create({
       login: dto.login,
       password: dto.password,
       role: dto.role,
@@ -49,8 +49,8 @@ export class UserService {
     return toUserResponse(user);
   }
 
-  updatePassword(id: string, dto: UpdatePasswordDto): UserResponseDto {
-    const existingUser = this.userRepository.findById(id);
+  async updatePassword(id: string, dto: UpdatePasswordDto): Promise<UserResponseDto> {
+    const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
@@ -59,7 +59,7 @@ export class UserService {
       throw new ForbiddenException('Old password is incorrect');
     }
 
-    const updatedUser = this.userRepository.update(id, { password: dto.newPassword });
+    const updatedUser = await this.userRepository.update(id, { password: dto.newPassword });
     if (!updatedUser) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
@@ -67,13 +67,15 @@ export class UserService {
     return toUserResponse(updatedUser);
   }
 
-  remove(id: string): void {
-    const deletedUser = this.userRepository.delete(id);
+  async remove(id: string): Promise<void> {
+    const deletedUser = await this.userRepository.delete(id);
     if (!deletedUser) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
 
-    this.articleService.clearAuthorByUser(id);
-    this.commentService.removeByAuthor(id);
+    // Prisma's onDelete: Cascade / SetNull constraints will handle deleting
+    // or removing relations, so manual cleanup calls are no longer needed here.
+    // this.articleService.clearAuthorByUser(id);
+    // this.commentService.removeByAuthor(id);
   }
 }

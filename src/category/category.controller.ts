@@ -52,7 +52,7 @@ export class CategoryController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): void {
-    this.categoryService.remove(id);
+  remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    return this.categoryService.remove(id);
   }
 }

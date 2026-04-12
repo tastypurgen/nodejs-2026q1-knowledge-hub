@@ -16,16 +16,16 @@ export class CategoryService {
     private readonly articleService: ArticleService,
   ) {}
 
-  findAll(query: CategoryListQueryDto) {
-    const categories = this.categoryRepository
-      .findAll()
-      .map((category) => new CategoryResponseDto(category));
+  async findAll(query: CategoryListQueryDto) {
+    const categories = (await this.categoryRepository.findAll()).map(
+      (category) => new CategoryResponseDto(category),
+    );
 
     return applyCollectionQuery(categories, query);
   }
 
-  findOne(id: string): CategoryResponseDto {
-    const category = this.categoryRepository.findById(id);
+  async findOne(id: string): Promise<CategoryResponseDto> {
+    const category = await this.categoryRepository.findById(id);
     if (!category) {
       throw new NotFoundException(`Category with id ${id} not found`);
     }
@@ -33,13 +33,13 @@ export class CategoryService {
     return new CategoryResponseDto(category);
   }
 
-  create(dto: CreateCategoryDto): CategoryResponseDto {
-    const category = this.categoryRepository.create(dto);
+  async create(dto: CreateCategoryDto): Promise<CategoryResponseDto> {
+    const category = await this.categoryRepository.create(dto);
     return new CategoryResponseDto(category);
   }
 
-  update(id: string, dto: UpdateCategoryDto): CategoryResponseDto {
-    const category = this.categoryRepository.update(id, dto);
+  async update(id: string, dto: UpdateCategoryDto): Promise<CategoryResponseDto> {
+    const category = await this.categoryRepository.update(id, dto);
     if (!category) {
       throw new NotFoundException(`Category with id ${id} not found`);
     }
@@ -47,12 +47,12 @@ export class CategoryService {
     return new CategoryResponseDto(category);
   }
 
-  remove(id: string): void {
-    const deletedCategory = this.categoryRepository.delete(id);
+  async remove(id: string): Promise<void> {
+    const deletedCategory = await this.categoryRepository.delete(id);
     if (!deletedCategory) {
       throw new NotFoundException(`Category with id ${id} not found`);
     }
 
-    this.articleService.clearCategoryByCategory(id);
+    // Cascade is handled by Prisma via SetNull
   }
 }
