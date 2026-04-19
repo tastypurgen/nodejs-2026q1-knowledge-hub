@@ -9,18 +9,15 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
-import { ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import { WriteAccessGuard } from '../common/guards/write-access.guard';
 import { CommentListQueryDto } from './dto/comment-list-query.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CommentService } from './comment.service';
 
 @ApiTags('comment')
-@ApiHeader({ name: 'x-user-role', required: false })
-@UseGuards(WriteAccessGuard)
+@ApiBearerAuth()
 @Controller('comment')
 export class CommentController {
   constructor(private readonly commentService: CommentService) {}
@@ -28,6 +25,11 @@ export class CommentController {
   @Get()
   findAll(@Query() query: CommentListQueryDto) {
     return this.commentService.findAll(query);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    return this.commentService.findOne(id);
   }
 
   @Post()
