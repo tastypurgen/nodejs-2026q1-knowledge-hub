@@ -28,6 +28,15 @@ export class CommentService {
     return applyCollectionQuery(comments, query);
   }
 
+  async findOne(id: string): Promise<CommentResponseDto> {
+    const comment = await this.commentRepository.findById(id);
+    if (!comment) {
+      throw new NotFoundException(`Comment with id ${id} not found`);
+    }
+
+    return new CommentResponseDto(comment);
+  }
+
   async create(dto: CreateCommentDto): Promise<CommentResponseDto> {
     if (!(await this.articleService.exists(dto.articleId))) {
       throw new UnprocessableEntityException(
