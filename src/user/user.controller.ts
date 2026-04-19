@@ -10,16 +10,19 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiHeader, ApiTags } from '@nestjs/swagger';
 
+import { WriteAccessGuard } from '../common/guards/write-access.guard';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UserListQueryDto } from './dto/user-list-query.dto';
 import { UserService } from './user.service';
 
 @ApiTags('user')
-@ApiBearerAuth()
+@ApiHeader({ name: 'x-user-role', required: false })
+@UseGuards(WriteAccessGuard)
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}

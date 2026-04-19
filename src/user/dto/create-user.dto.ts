@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
 import { UserRole } from '../../common/enums/user-role.enum';
 
@@ -15,7 +15,6 @@ export class CreateUserDto {
   password!: string;
 
   @ApiPropertyOptional({ enum: UserRole, default: UserRole.VIEWER })
-  @IsOptional()
   @IsEnum(UserRole)
-  role?: UserRole;
+  role: UserRole = UserRole.VIEWER;
 }

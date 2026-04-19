@@ -21,18 +21,19 @@ export class ArticleService {
     private readonly commentService: CommentService,
   ) {}
 
-  async findAll(query: ArticleListQueryDto) {
-    const filteredArticles = (await this.articleRepository.findAll({
-      status: query.status,
-      categoryId: query.categoryId,
-      tag: query.tag,
-    })).map((article) => new ArticleResponseDto(article));
+  findAll(query: ArticleListQueryDto) {
+    const filteredArticles = this.articleRepository
+      .findAll()
+      .filter((article) => !query.status || article.status === query.status)
+      .filter((article) => !query.categoryId || article.categoryId === query.categoryId)
+      .filter((article) => !query.tag || article.tags.includes(query.tag))
+      .map((article) => new ArticleResponseDto(article));
 
     return applyCollectionQuery(filteredArticles, query);
   }
 
-  async findOne(id: string): Promise<ArticleResponseDto> {
-    const article = await this.articleRepository.findById(id);
+  findOne(id: string): ArticleResponseDto {
+    const article = this.articleRepository.findById(id);
     if (!article) {
       throw new NotFoundException(`Article with id ${id} not found`);
     }
@@ -40,8 +41,8 @@ export class ArticleService {
     return new ArticleResponseDto(article);
   }
 
-  async create(dto: CreateArticleDto): Promise<ArticleResponseDto> {
-    const article = await this.articleRepository.create({
+  create(dto: CreateArticleDto): ArticleResponseDto {
+    const article = this.articleRepository.create({
       title: dto.title,
       content: dto.content,
       status: dto.status,
@@ -53,8 +54,8 @@ export class ArticleService {
     return new ArticleResponseDto(article);
   }
 
-  async update(id: string, dto: UpdateArticleDto): Promise<ArticleResponseDto> {
-    const updatedArticle = await this.articleRepository.update(id, {
+  update(id: string, dto: UpdateArticleDto): ArticleResponseDto {
+    const updatedArticle = this.articleRepository.update(id, {
       title: dto.title,
       content: dto.content,
       status: dto.status,
@@ -69,14 +70,32 @@ export class ArticleService {
     return new ArticleResponseDto(updatedArticle);
   }
 
-  async remove(id: string): Promise<void> {
-    const deletedArticle = await this.articleRepository.delete(id);
+  remove(id: string): void {
+    const deletedArticle = this.articleRepository.delete(id);
     if (!deletedArticle) {
       throw new NotFoundException(`Article with id ${id} not found`);
     }
+
+    this.commentService.removeByArticle(id);
   }
 
-  async exists(id: string): Promise<boolean> {
-    return !!(await this.articleRepository.findById(id));
+  exists(id: string): boolean {
+    return !!this.articleRepository.findById(id);
+  }
+
+  clearAuthorByUser(userId: string): void {
+    for (const article of this.articleRepository.findAll()) {
+      if (article.authorId === userId) {
+        this.articleRepository.update(article.id, { authorId: null });
+      }
+    }
+  }
+
+  clearCategoryByCategory(categoryId: string): void {
+    for (const article of this.articleRepository.findAll()) {
+      if (article.categoryId === categoryId) {
+        this.articleRepository.update(article.id, { categoryId: null });
+      }
+    }
   }
 }
