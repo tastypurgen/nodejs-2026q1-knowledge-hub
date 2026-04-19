@@ -3,5 +3,5 @@ dist
 coverage
 .npm-cache
 *.tsbuildinfo
-
+/.idea
 /src/generated/prisma
