@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from './models/user.model';
 import { UserRole } from '../common/enums/user-role.enum';
+import { fromPrismaRole, toPrismaRole } from '../common/utils/prisma-enum.util';
 
 @Injectable()
 export class UserRepository {
@@ -12,7 +13,7 @@ export class UserRepository {
       id: user.id,
       login: user.login,
       password: user.password,
-      role: user.role as UserRole,
+      role: fromPrismaRole(user.role),
       createdAt: user.createdAt.getTime(),
       updatedAt: user.updatedAt.getTime(),
     };
@@ -28,12 +29,17 @@ export class UserRepository {
     return user ? this.mapUser(user) : undefined;
   }
 
-  async create(data: Pick<User, 'login' | 'password' | 'role'>): Promise<User> {
+  async findByLogin(login: string): Promise<User | undefined> {
+    const user = await this.prisma.user.findUnique({ where: { login } });
+    return user ? this.mapUser(user) : undefined;
+  }
+
+  async create(data: Pick<User, 'login' | 'password'> & { role?: UserRole }): Promise<User> {
     const user = await this.prisma.user.create({
       data: {
         login: data.login,
         password: data.password,
-        role: data.role as any,
+        role: toPrismaRole(data.role ?? UserRole.VIEWER) as any,
       },
     });
     return this.mapUser(user);
@@ -50,7 +56,7 @@ export class UserRepository {
       data: {
         login: data.login,
         password: data.password,
-        role: data.role as any,
+        role: data.role ? (toPrismaRole(data.role) as any) : undefined,
       },
     });
     return this.mapUser(updated);
