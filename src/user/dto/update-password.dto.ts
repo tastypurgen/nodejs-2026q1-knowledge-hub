@@ -1,14 +1,23 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+import { UserRole } from '../../common/enums/user-role.enum';
 
 export class UpdatePasswordDto {
-  @ApiProperty({ example: 'old-password' })
+  @ApiPropertyOptional({ example: 'old-password' })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  oldPassword!: string;
+  oldPassword?: string;
 
-  @ApiProperty({ example: 'new-password' })
+  @ApiPropertyOptional({ example: 'new-password' })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  newPassword!: string;
+  newPassword?: string;
+
+  @ApiPropertyOptional({ enum: UserRole })
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
 }

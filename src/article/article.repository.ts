@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ArticleStatus } from '../common/enums/article-status.enum';
+import {
+  fromPrismaArticleStatus,
+  toPrismaArticleStatus,
+} from '../common/utils/prisma-enum.util';
 import type { Article } from './models/article.model';
 
 export interface ArticleFilters {
@@ -18,7 +22,7 @@ export class ArticleRepository {
       id: article.id,
       title: article.title,
       content: article.content,
-      status: article.status as ArticleStatus,
+      status: fromPrismaArticleStatus(article.status),
       authorId: article.authorId,
       categoryId: article.categoryId,
       tags: article.tags ? article.tags.map((t: any) => t.name) : [],
@@ -31,7 +35,7 @@ export class ArticleRepository {
     const where: any = {};
     
     if (filters?.status) {
-      where.status = filters.status;
+      where.status = toPrismaArticleStatus(filters.status);
     }
     if (filters?.categoryId) {
       where.categoryId = filters.categoryId;
@@ -68,7 +72,7 @@ export class ArticleRepository {
       data: {
         title: data.title,
         content: data.content,
-        status: data.status as any,
+        status: toPrismaArticleStatus(data.status) as any,
         authorId: data.authorId ?? null,
         categoryId: data.categoryId ?? null,
         tags: {
@@ -90,7 +94,7 @@ export class ArticleRepository {
     const updateData: any = {};
     if (data.title !== undefined) updateData.title = data.title;
     if (data.content !== undefined) updateData.content = data.content;
-    if (data.status !== undefined) updateData.status = data.status as any;
+    if (data.status !== undefined) updateData.status = toPrismaArticleStatus(data.status) as any;
     if (data.authorId !== undefined) updateData.authorId = data.authorId;
     if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
 

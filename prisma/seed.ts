@@ -1,13 +1,17 @@
 import { PrismaClient } from '@prisma/client';
+import { hash } from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const adminPassword = await hash('StrongAdminPassword123!', 10);
+  const editorPassword = await hash('StrongEditorPassword123!', 10);
+
   // Users
   const admin = await prisma.user.create({
     data: {
       login: 'admin',
-      password: 'StrongAdminPassword123!',
+      password: adminPassword,
       role: 'ADMIN',
     },
   });
@@ -15,7 +19,7 @@ async function main() {
   const editor = await prisma.user.create({
     data: {
       login: 'editor',
-      password: 'StrongEditorPassword123!',
+      password: editorPassword,
       role: 'EDITOR',
     },
   });
