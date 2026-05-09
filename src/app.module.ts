@@ -11,6 +11,7 @@ import { RbacGuard } from './common/guards/rbac.guard';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { CommentModule } from './comment/comment.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RagModule } from './rag/rag.module';
 import { UserModule } from './user/user.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { UserModule } from './user/user.module';
     CategoryModule,
     CommentModule,
     AiModule,
+    RagModule,
   ],
   controllers: [AppController],
   providers: [
