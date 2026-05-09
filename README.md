@@ -7,14 +7,17 @@ A REST API for a Knowledge Hub platform built with Nest.js and TypeScript. The a
 - Node.js 24.x
 - Nest.js
 - TypeScript
+- PostgreSQL + Prisma
+- Google Gemini API for generation and embeddings
+- Qdrant vector database
 - class-validator / class-transformer
 - Swagger via `@nestjs/swagger`
 - Jest + Supertest
 
 ## Features
 
-- Domain-based Nest modules: `user`, `article`, `category`, `comment`
-- In-memory repositories with services separated from controllers
+- Domain-based Nest modules: `user`, `article`, `category`, `comment`, `ai`, `rag`
+- Prisma repositories with services separated from controllers
 - DTO validation through a global `ValidationPipe`
 - Swagger UI at [http://localhost:4000/doc](http://localhost:4000/doc)
 - Request logging middleware
@@ -26,6 +29,7 @@ A REST API for a Knowledge Hub platform built with Nest.js and TypeScript. The a
 - Optional list pagination and sorting
 - Article filtering by `status`, `categoryId`, and `tag`
 - AI article summary, translation, analysis, generic generation, usage tracking, rate limiting, and in-memory response caching
+- RAG indexing, semantic search, grounded chat, source attribution, metadata filtering, and vector deletion
 
 ## Installation
 
@@ -49,11 +53,18 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/knowledge_hub?schema
 GEMINI_API_KEY=your-gemini-api-key
 GEMINI_API_BASE_URL=https://generativelanguage.googleapis.com
 GEMINI_MODEL=gemini-2.0-flash
+GEMINI_EMBEDDING_MODEL=text-embedding-004
 AI_RATE_LIMIT_RPM=20
 AI_CACHE_TTL_SEC=300
+RAG_VECTOR_DB_PROVIDER=qdrant
+RAG_VECTOR_DB_URL=http://vectordb:6333
+RAG_VECTOR_COLLECTION=knowledge_hub_articles
+RAG_CHUNK_SIZE=800
+RAG_CHUNK_OVERLAP=200
+RAG_CONVERSATION_MAX_MESSAGES=20
 ```
 
-`GEMINI_MODEL` defaults to `gemini-2.0-flash`. `AI_RATE_LIMIT_RPM` defaults to `20`, and `AI_CACHE_TTL_SEC` defaults to `300`.
+`GEMINI_MODEL` defaults to `gemini-2.0-flash`. `GEMINI_EMBEDDING_MODEL` defaults to `text-embedding-004`. `AI_RATE_LIMIT_RPM` defaults to `20`, `AI_CACHE_TTL_SEC` defaults to `300`, `RAG_CHUNK_SIZE` defaults to `800`, `RAG_CHUNK_OVERLAP` defaults to `200`, and `RAG_CONVERSATION_MAX_MESSAGES` defaults to `20`.
 
 ## Gemini API key setup
 
@@ -73,7 +84,7 @@ npm install
 copy .env.example .env
 ```
 
-Edit `.env`, paste the Gemini key into `GEMINI_API_KEY`, and confirm `DATABASE_URL` points to your PostgreSQL instance. With Docker, start PostgreSQL and the API together:
+Edit `.env`, paste the Gemini key into `GEMINI_API_KEY`, and confirm `DATABASE_URL` points to your PostgreSQL instance. With Docker, start PostgreSQL, Qdrant, and the API together:
 
 ```bash
 docker-compose up --build
@@ -242,6 +253,66 @@ AI route behavior:
 - Gemini authentication/configuration failures return `500` without logging secrets.
 - Summary and translation responses are cached in memory by article id, request parameters, and article `updatedAt`.
 
+### RAG
+
+The RAG endpoints use published article content from the database, Gemini embeddings, Gemini answer generation, and Qdrant vector search. Search and chat are available to authenticated users; index refresh and vector deletion require an admin token.
+
+- `POST /ai/rag/index`
+- `POST /ai/rag/search`
+- `POST /ai/rag/chat`
+- `DELETE /ai/rag/index/articles/:articleId`
+- `GET /ai/rag/chat/:conversationId/history`
+
+Build or refresh the vector index:
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/index \
+  -H "Authorization: Bearer <access-token>" \
+  -H "Content-Type: application/json" \
+  -d "{\"onlyPublished\":true}"
+```
+
+Selective reindex:
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/index \
+  -H "Authorization: Bearer <access-token>" \
+  -H "Content-Type: application/json" \
+  -d "{\"onlyPublished\":false,\"articleIds\":[\"78f5c3cf-b753-413d-9cc9-f362ec1fe42b\"]}"
+```
+
+Semantic search with metadata filters:
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/search \
+  -H "Authorization: Bearer <access-token>" \
+  -H "Content-Type: application/json" \
+  -d "{\"query\":\"How does validation work?\",\"limit\":5,\"articleStatus\":\"published\",\"tags\":[\"nestjs\"]}"
+```
+
+Grounded chat:
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/chat \
+  -H "Authorization: Bearer <access-token>" \
+  -H "Content-Type: application/json" \
+  -d "{\"question\":\"Summarize the JWT refresh token flow.\"}"
+```
+
+Remove an article from the vector index:
+
+```bash
+curl -X DELETE http://localhost:4000/ai/rag/index/articles/{articleId} \
+  -H "Authorization: Bearer <access-token>"
+```
+
+RAG route behavior:
+
+- Missing `query` or `question` returns `400`.
+- Qdrant or Gemini outages return `503` with a descriptive message.
+- Reindexing removes stale vectors for each indexed article before upserting fresh vectors.
+- Chat sources are the same chunks passed into the grounded Gemini prompt.
+
 ### Categories
 
 - `GET /category`
@@ -309,16 +380,26 @@ OpenAPI documentation is available at:
 
 - Validation errors return `400`.
 - AI usage, generic conversation context, cache entries, and rate-limit counters are stored in memory and reset when the service restarts.
+- RAG conversation history is also process-local and resets when the service restarts.
+- Qdrant stores article vectors in the `qdrant-data` Docker volume.
 - Gemini free-tier quotas, network latency, regional availability, and model availability can affect AI endpoint latency and reliability.
 - The app uses `gemini-2.0-flash` by default, but you can switch models with `GEMINI_MODEL`.
+- The RAG embedding model is `text-embedding-004` by default, configurable through `GEMINI_EMBEDDING_MODEL`.
 
 ## Docker setup
 
-Start the application and PostgreSQL database with Docker:
+Start the application, PostgreSQL database, and Qdrant vector database with Docker:
 
 ```bash
 docker-compose up --build
 ```
+
+After startup:
+
+1. Sign up or log in and copy an access token.
+2. Create or update articles with `status: "published"`.
+3. Call `POST /ai/rag/index`.
+4. Call `POST /ai/rag/search` or `POST /ai/rag/chat`.
 
 **Docker Hub image:** [https://hub.docker.com/r/stilegs/nodejs-2026q1](https://hub.docker.com/r/stilegs/nodejs-2026q1)
 
