@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 
+import { AiModule } from './ai/ai.module';
 import { AppController } from './app.controller';
 import { ArticleModule } from './article/article.module';
 import { AuthModule } from './auth/auth.module';
@@ -20,6 +21,7 @@ import { UserModule } from './user/user.module';
     ArticleModule,
     CategoryModule,
     CommentModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [
