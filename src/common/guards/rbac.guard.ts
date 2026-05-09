@@ -32,6 +32,10 @@ export class RbacGuard implements CanActivate {
       throw new ForbiddenException('Authenticated user is required');
     }
 
+    if (this.isReadOnlyPost(request)) {
+      return true;
+    }
+
     if (user.role === UserRole.ADMIN) {
       return true;
     }
@@ -148,6 +152,13 @@ export class RbacGuard implements CanActivate {
       path === '/auth/signup' ||
       path === '/auth/login' ||
       path === '/auth/refresh'
+    );
+  }
+
+  private isReadOnlyPost(request: Request): boolean {
+    return (
+      request.method === 'POST' &&
+      (request.path === '/ai/rag/search' || request.path === '/ai/rag/chat')
     );
   }
 }
